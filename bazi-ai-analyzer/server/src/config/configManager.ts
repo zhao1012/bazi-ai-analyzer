@@ -1,6 +1,10 @@
 import { DEFAULT_MODELS, DEFAULT_PROMPT_TEMPLATE, type ModelConfig, type PromptTemplate } from './models';
+import { fileURLToPath } from 'url';
 import * as fs from 'fs';
 import * as path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const CONFIG_DIR = path.join(__dirname, '../../config');
 const MODEL_CONFIG_FILE = path.join(CONFIG_DIR, 'models.json');
