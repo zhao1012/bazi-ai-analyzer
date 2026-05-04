@@ -1,12 +1,13 @@
 import { DEFAULT_MODELS, DEFAULT_PROMPT_TEMPLATE, type ModelConfig, type PromptTemplate } from './models';
+import * as fs from 'fs';
+import * as path from 'path';
 
-const CONFIG_DIR = process.env.CONFIG_DIR || './config';
-const MODEL_CONFIG_FILE = `${CONFIG_DIR}/models.json`;
-const PROMPT_CONFIG_FILE = `${CONFIG_DIR}/prompt.json`;
+const CONFIG_DIR = path.join(__dirname, '../../config');
+const MODEL_CONFIG_FILE = path.join(CONFIG_DIR, 'models.json');
+const PROMPT_CONFIG_FILE = path.join(CONFIG_DIR, 'prompt.json');
 
 export function getModelConfigs(): ModelConfig[] {
   try {
-    const fs = require('fs');
     if (fs.existsSync(MODEL_CONFIG_FILE)) {
       return JSON.parse(fs.readFileSync(MODEL_CONFIG_FILE, 'utf-8'));
     }
@@ -18,8 +19,6 @@ export function getModelConfigs(): ModelConfig[] {
 
 export function saveModelConfigs(configs: ModelConfig[]): boolean {
   try {
-    const fs = require('fs');
-    const path = require('path');
     if (!fs.existsSync(CONFIG_DIR)) {
       fs.mkdirSync(CONFIG_DIR, { recursive: true });
     }
@@ -33,12 +32,11 @@ export function saveModelConfigs(configs: ModelConfig[]): boolean {
 
 export function getActiveModelConfig(): ModelConfig | undefined {
   const configs = getModelConfigs();
-  return configs.find(c => c.apiKey) || configs[0];
+  return configs.find(c => c.apiKey && c.apiKey !== 'not-needed') || configs[0];
 }
 
 export function getPromptTemplate(): PromptTemplate {
   try {
-    const fs = require('fs');
     if (fs.existsSync(PROMPT_CONFIG_FILE)) {
       return JSON.parse(fs.readFileSync(PROMPT_CONFIG_FILE, 'utf-8'));
     }
@@ -50,8 +48,6 @@ export function getPromptTemplate(): PromptTemplate {
 
 export function savePromptTemplate(template: PromptTemplate): boolean {
   try {
-    const fs = require('fs');
-    const path = require('path');
     if (!fs.existsSync(CONFIG_DIR)) {
       fs.mkdirSync(CONFIG_DIR, { recursive: true });
     }

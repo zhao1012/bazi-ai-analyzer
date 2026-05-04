@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { createDeepSeekStream, buildBaziSystemPrompt, buildBaziUserPrompt } from '../services/deepseek.js';
+import { createAIStream, buildBaziSystemPrompt, buildBaziUserPrompt } from '../services/deepseek.js';
+import { getActiveModelConfig, getPromptTemplate } from '../config/configManager.js';
 
 export const baziRouter = Router();
 
@@ -694,9 +695,14 @@ baziRouter.post('/ask', async (req, res) => {
       return;
     }
 
-    const apiKey = process.env.DEEPSEEK_API_KEY || 'sk-a1ea4013afd1422d99a27f0d9f96cd72';
+    const modelConfig = getActiveModelConfig();
+    if (!modelConfig || !modelConfig.apiKey) {
+      res.status(500).json({ error: 'No AI model configured. Please configure a model in Settings.' });
+      return;
+    }
 
-    const systemPrompt = buildBaziSystemPrompt();
+    const promptTemplate = getPromptTemplate();
+    const systemPrompt = buildBaziSystemPrompt(promptTemplate.systemPrompt);
     const userPrompt = buildBaziUserPrompt(bazi, analysis, question);
 
     if (stream) {
@@ -705,8 +711,12 @@ baziRouter.post('/ask', async (req, res) => {
       res.setHeader('Connection', 'keep-alive');
       res.flushHeaders();
 
-      await createDeepSeekStream({
-        apiKey,
+      await createAIStream({
+        baseUrl: modelConfig.baseUrl,
+        apiKey: modelConfig.apiKey,
+        model: modelConfig.model,
+        temperature: modelConfig.temperature,
+        maxTokens: modelConfig.maxTokens,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
@@ -724,7 +734,17 @@ baziRouter.post('/ask', async (req, res) => {
         }
       });
     } else {
-      const answer = await getDeepSeekAnswer(apiKey, systemPrompt, userPrompt);
+      const answer = await getAIAnswer(
+        modelConfig.baseUrl,
+        modelConfig.apiKey,
+        modelConfig.model,
+        [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        modelConfig.temperature,
+        modelConfig.maxTokens
+      );
       res.json({ answer, topic: detectTopic(question) });
     }
   } catch (error) {
@@ -734,16 +754,24 @@ baziRouter.post('/ask', async (req, res) => {
   }
 });
 
-async function getDeepSeekAnswer(apiKey: string, systemPrompt: string, userPrompt: string): Promise<string> {
+async function getAIAnswer(
+  baseUrl: string,
+  apiKey: string,
+  model: string,
+  messages: { role: 'system' | 'user' | 'assistant'; content: string }[],
+  temperature = 0.7,
+  maxTokens = 2000
+): Promise<string> {
   return new Promise((resolve, reject) => {
     let fullAnswer = '';
 
-    createDeepSeekStream({
+    createAIStream({
+      baseUrl,
       apiKey,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
+      model,
+      messages,
+      temperature,
+      maxTokens,
       onChunk: (chunk) => {
         fullAnswer += chunk;
       },
